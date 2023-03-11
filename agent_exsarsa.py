@@ -28,14 +28,14 @@ class ExpectedSARSA:
             state, action, next_state, next_action, reward, terminated, truncated
         )
 
-        max_a_q = np.argmax(self.q_table[next_state, :])
+        max_a_q_index = np.argmax(self.q_table[next_state, :])
         eps_act_rate = self.epsilon/self.actions_n
-
-        pis = [1 - self.epsilon + eps_act_rate if q_val ==
-               max_a_q else eps_act_rate for q_val in self.q_table[next_state, :]]
+        pais = [1 - self.epsilon + eps_act_rate if i ==
+               max_a_q_index else eps_act_rate for i in range(len(self.q_table[next_state, :]))]
+        
         expected_values = [
-            pi*q_val for pi in pis for q_val in self.q_table[next_state, :]]
-
+            pais[i]*self.q_table[next_state,i] for i in range(len(self.q_table[next_state, :]))]
+        
         self.q_table[state, action] = self.q_table[state, action] + self.alpha * (
             reward
             + self.gamma * np.sum(expected_values)

@@ -4,6 +4,11 @@ import gym_environments
 import numpy as np
 from agent_sarsa import SARSA
 from agent_exsarsa import ExpectedSARSA
+import time
+import datetime
+import csv
+import matplotlib.pyplot as plt
+import multiprocessing
 
 
 def calculate_states_size(env):
@@ -48,17 +53,17 @@ def run(env, agent, selection_method, episodes):
     return total_reward
 
 
-if __name__ == "__main__":
-    episodes = 4000 if len(sys.argv) == 1 else int(sys.argv[1])
+def execute_experiment(epsilon):
+    episodes = 10000
 
     env = gym.make("MountainCar-v0")
-
-    sarsa = ExpectedSARSA(
+    entries = []
+    sarsa = SARSA(
         calculate_states_size(env),
         env.action_space.n,
         alpha=0.1,
         gamma=0.9,
-        epsilon=0.1,
+        epsilon=epsilon,
     )
 
     exsarsa = ExpectedSARSA(
@@ -66,7 +71,7 @@ if __name__ == "__main__":
         env.action_space.n,
         alpha=0.1,
         gamma=0.9,
-        epsilon=0.1,
+        epsilon=epsilon,
     )
 
     # Train
@@ -79,21 +84,54 @@ if __name__ == "__main__":
     env.close()
 
     # Play
-    total_reward = 0
+    total_reward, plays = 0, 100
     env = gym.make("MountainCar-v0")
-    for _ in range(10):
+    for _ in range(plays):
         reward = run(env, sarsa, "greedy", 1)
         total_reward += reward
-        sarsa.render()
     env.close()
-    print(total_reward/10)
+    entries.append(('greedy', 'epsilon-greedy', 0.1, 0.9,
+                   epsilon, episodes, total_reward/plays, 'sarsa'))
+    print(
+        f'SARSA AVG_Reward {total_reward/plays} for {epsilon:.2f} and {plays} and {episodes}')
 
     # Play
     total_reward = 0
     env = gym.make("MountainCar-v0")
-    for _ in range(10):
+    for _ in range(plays):
         reward = run(env, exsarsa, "greedy", 1)
         total_reward += reward
-        exsarsa.render()
-    print(total_reward/10)
+    entries.append(('greedy', 'epsilon-greedy', 0.1, 0.9, epsilon,
+                   episodes, total_reward/plays, 'expected_sarsa'))
+    print(
+        f'Expected SARSA AVG_Reward {total_reward/plays} for {epsilon:.2f} and {plays} and {episodes}')
     env.close()
+
+    return entries
+
+
+if __name__ == "__main__":
+    start = time.time()
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+    result = pool.map_async(execute_experiment, [i for i in np.arange(0.0, 1.1, 0.1)])
+    values = result.get()
+
+    with open('results.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['play_algorithm', 'learning_algorithm', 'alpha', 'gamma',
+                        'epsilon', 'learning_episodes', 'avg_reward', 'agent'])
+        for entries in values:
+            for entry in entries:
+                writer.writerow(entry)
+            
+        plt.plot([i for i in np.arange(0.0, 1.1, 0.1)], [entry[6]
+        for entries in values for entry in entries if entry[7] == 'sarsa'], label='SARSA')
+        plt.plot([i for i in np.arange(0.0, 1.1, 0.1)], [entry[6]
+        for entries in values for entry in entries if entry[7] == 'expected_sarsa'], label='Expected SARSA')
+
+    print(f'Time taken: {datetime.timedelta(seconds=time.time() - start)}')
+
+    plt.xlabel('Epsilon')
+    plt.ylabel('Average Reward')
+    plt.legend()
+    plt.show()

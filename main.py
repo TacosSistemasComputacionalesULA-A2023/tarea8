@@ -1,6 +1,5 @@
 import sys
 import gym
-import gym_environments
 import numpy as np
 from agent_sarsa import SARSA
 from agent_exsarsa import ExpectedSARSA
@@ -10,6 +9,7 @@ import csv
 import matplotlib.pyplot as plt
 import multiprocessing
 
+episodes, gamma, epsilon = 4000, 0.9, 0.6
 
 def calculate_states_size(env):
     max = env.observation_space.high
@@ -53,24 +53,22 @@ def run(env, agent, selection_method, episodes):
     return total_reward
 
 
-def execute_experiment(epsilon):
-    episodes = 10000
-
+def execute_experiment(alpha):
     env = gym.make("MountainCar-v0")
     entries = []
     sarsa = SARSA(
         calculate_states_size(env),
         env.action_space.n,
-        alpha=0.1,
-        gamma=0.9,
+        alpha=alpha,
+        gamma=gamma,
         epsilon=epsilon,
     )
 
     exsarsa = ExpectedSARSA(
         calculate_states_size(env),
         env.action_space.n,
-        alpha=0.1,
-        gamma=0.9,
+        alpha=alpha,
+        gamma=gamma,
         epsilon=epsilon,
     )
 
@@ -90,10 +88,10 @@ def execute_experiment(epsilon):
         reward = run(env, sarsa, "greedy", 1)
         total_reward += reward
     env.close()
-    entries.append(('greedy', 'epsilon-greedy', 0.1, 0.9,
+    entries.append(('greedy', 'epsilon-greedy', alpha, gamma,
                    epsilon, episodes, total_reward/plays, 'sarsa'))
     print(
-        f'SARSA AVG_Reward {total_reward/plays} for {epsilon:.2f} and {plays} and {episodes}')
+        f'SARSA AVG_Reward {total_reward/plays} for {gamma:.2f} and {plays} and {episodes} episodes')
 
     # Play
     total_reward = 0
@@ -101,10 +99,10 @@ def execute_experiment(epsilon):
     for _ in range(plays):
         reward = run(env, exsarsa, "greedy", 1)
         total_reward += reward
-    entries.append(('greedy', 'epsilon-greedy', 0.1, 0.9, epsilon,
+    entries.append(('greedy', 'epsilon-greedy', alpha, gamma, epsilon,
                    episodes, total_reward/plays, 'expected_sarsa'))
     print(
-        f'Expected SARSA AVG_Reward {total_reward/plays} for {epsilon:.2f} and {plays} and {episodes}')
+        f'Expected SARSA AVG_Reward {total_reward/plays} for {gamma:.2f} and {plays} and {episodes} episodes')
     env.close()
 
     return entries
@@ -131,7 +129,7 @@ if __name__ == "__main__":
 
     print(f'Time taken: {datetime.timedelta(seconds=time.time() - start)}')
 
-    plt.xlabel('Epsilon')
+    plt.xlabel(f'Alpha\nGamma={gamma} Epsilon={epsilon}')
     plt.ylabel('Average Reward')
     plt.legend()
     plt.show()
